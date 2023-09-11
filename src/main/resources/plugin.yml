@@ -1,0 +1,30 @@
+name: RitualTeleporters
+version: '${version}'
+main: me.elspeth.ritualteleporters.RitualTeleporter
+api-version: '1.20'
+author: xElspeth
+description: 'Simple and pretty teleporters'
+
+commands:
+    teleporter:
+        aliases: [ritp, tptr]
+        description: 'Modify teleporter data'
+        usage: '/teleporter help'
+
+permissions:
+    ritualteleporter.*:
+        default: false
+        children:
+            ritualteleporter.change.*: true
+    ritualteleporter.change.*:
+        default: true
+        children:
+            ritualteleporter.change.members: true
+            ritualteleporter.change.display: true
+            ritualteleporter.change.name: true
+    ritualteleporter.change.members:
+        description: 'Allows adding members to teleporters'
+    ritualteleporter.change.display:
+        description: 'Allows changing of display item of teleporters'
+    ritualteleporter.change.name:
+        description: 'Allows changing the name of a teleporter'
