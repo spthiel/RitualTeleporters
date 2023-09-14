@@ -11,10 +11,12 @@ import org.jetbrains.annotations.Nullable;
 import me.elspeth.ritualteleporters.commands.subcommands.HelpSubcommand;
 import me.elspeth.ritualteleporters.utils.ItemUtils;
 
-public class TeleporterCommand implements TabExecutor {
+public class TeleporterCommand implements TabExecutor, IHasSubcommands {
+	
+	private static final String MINECRAFT_PREFIX = "minecraft:";
 	
 	private final List<Subcommand> subcommands = new ArrayList<>();
-	private final HelpSubcommand   helpCommand = new HelpSubcommand();
+	private final HelpSubcommand   helpCommand = new HelpSubcommand(this);
 	
 	public void addSubcommand(Subcommand subcommand) {
 		
@@ -66,8 +68,8 @@ public class TeleporterCommand implements TabExecutor {
 					return list;
 				case "display":
 					String expanded = args[1];
-					if (!"minecraft:".startsWith(expanded.toLowerCase()) && !StringUtil.startsWithIgnoreCase(expanded, "minecraft:")) {
-						expanded = "minecraft:" + expanded;
+					if (!MINECRAFT_PREFIX.startsWith(expanded.toLowerCase()) && !StringUtil.startsWithIgnoreCase(expanded, MINECRAFT_PREFIX)) {
+						expanded = MINECRAFT_PREFIX + expanded;
 					}
 					StringUtil.copyPartialMatches(expanded, ItemUtils.getMinecraftIds(), list);
 					return list;
@@ -83,5 +85,11 @@ public class TeleporterCommand implements TabExecutor {
 		}
 		
 		return null;
+	}
+	
+	@Override
+	public List<Subcommand> getSubcommands() {
+		
+		return subcommands;
 	}
 }

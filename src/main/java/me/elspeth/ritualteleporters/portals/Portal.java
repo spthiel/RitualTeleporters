@@ -24,22 +24,22 @@ public class Portal implements ConfigurationSerializable {
 	
 	private static int counter = 0;
 	
+	private final int id;
 	private final Location location;
 	private final Location centerLocation;
 	private       Colors color;
 	private final UUID   owner;
 	private final World  world;
-	private final int id = counter++;
 	
-	// TODO
 	private String name = "Portal";
-	private String     item    = "minecraft:grass_block";
+	private Material     item    = Material.GRASS_BLOCK;
 	private List<UUID> members = new ArrayList<>();
 	
 	public Portal(Location location, Colors color, Player owner) {
 		this(location, color, owner.getUniqueId());
 	}
 	public Portal(Location location, Colors color, UUID owner) {
+		this.id = counter++;
 		this.owner = owner;
 		this.location = location;
 		this.world = location.getWorld();
@@ -73,13 +73,34 @@ public class Portal implements ConfigurationSerializable {
 		return name;
 	}
 	
+	public void setName(String name) {
+		
+		this.name = name;
+	}
+	
+	public void setItem(Material item) {
+		
+		this.item = item;
+	}
+	
 	public Material getItem() {
-		var out = Material.matchMaterial(this.item);
-		if (out == null) {
-			out = Material.GRASS_BLOCK;
-		}
-		out = Material.END_PORTAL_FRAME;
-		return out;
+		return this.item;
+	}
+	
+	public void addMember(UUID uuid) {
+		this.members.add(uuid);
+	}
+	
+	public void addMember(OfflinePlayer player) {
+		this.addMember(player.getUniqueId());
+	}
+	
+	public void removeMember(UUID uuid) {
+		this.members.remove(uuid);
+	}
+	
+	public void removeMember(OfflinePlayer player) {
+		this.removeMember(player.getUniqueId());
 	}
 	
 	public void spawn() {
@@ -161,6 +182,9 @@ public class Portal implements ConfigurationSerializable {
 		data.put("location", this.location);
 		data.put("color", this.color.name());
 		data.put("owner", this.owner.toString());
+		data.put("name", this.name);
+		data.put("display", this.item.name());
+		data.put("members", this.members.stream().map(UUID::toString));
 		
 		return data;
 	}
@@ -169,12 +193,36 @@ public class Portal implements ConfigurationSerializable {
 		var location = (Location) data.get("location");
 		var colorName = (String) data.get("color");
 		var colors = Colors.valueOf(colorName);
-		var uuid = UUID.fromString((String)data.get("owner"));
-		return new Portal(location, colors, uuid);
+		var ownerUUID = UUID.fromString((String)data.get("owner"));
+		
+		var portal = new Portal(location, colors, ownerUUID);
+		
+		portal.setName((String)data.getOrDefault("name", "Portal"));
+		portal.setItem(Material.valueOf((String)data.getOrDefault("display", "GRASS_BLOCK")));
+		
+		//noinspection unchecked
+		for (var member : (Iterable<String>)data.getOrDefault("members", new ArrayList<String>())) {
+			
+			var memberUUID = UUID.fromString(member);
+			portal.addMember(memberUUID);
+			
+		}
+		
+		return portal;
 	}
 	
 	
 	public void teleportTo(Player player) {
 		player.teleport(this.centerLocation);
+	}
+	
+	public UUID getOwner() {
+		
+		return this.owner;
+	}
+	
+	public List<UUID> getMembers() {
+		
+		return members;
 	}
 }

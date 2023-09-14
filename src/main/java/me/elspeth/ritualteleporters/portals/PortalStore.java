@@ -1,5 +1,6 @@
 package me.elspeth.ritualteleporters.portals;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,11 +66,11 @@ public class PortalStore {
 		saveToDisk();
 	}
 	
-	public Portal getPortalOf(Block block) {
+	public @Nullable Portal getPortalOf(Block block) {
 		return this.getPortalOf(block.getLocation());
 	}
 	
-	public Portal getPortalOf(Location location) {
+	public @Nullable Portal getPortalOf(Location location) {
 		
 		return this.portals.stream().filter(portal -> portal.getLocation().equals(location)).findFirst().orElse(null);
 	}
