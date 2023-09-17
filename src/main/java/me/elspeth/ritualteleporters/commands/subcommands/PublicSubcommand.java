@@ -1,14 +1,13 @@
 package me.elspeth.ritualteleporters.commands.subcommands;
 
-import cloud.commandframework.ArgumentDescription;
 import cloud.commandframework.Command;
+import cloud.commandframework.arguments.standard.BooleanArgument;
 import cloud.commandframework.bukkit.BukkitCommandManager;
-import cloud.commandframework.bukkit.data.ProtoItemStack;
-import cloud.commandframework.bukkit.parsers.ItemStackArgument;
+
+import java.util.Optional;
 
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import me.elspeth.ritualteleporters.commands.Subcommand;
@@ -16,18 +15,18 @@ import me.elspeth.ritualteleporters.teleporter.TeleporterStore;
 import me.elspeth.ritualteleporters.utils.Messages;
 import me.elspeth.ritualteleporters.utils.Permissions;
 
-public class DisplaySubcommand extends Subcommand {
+public class PublicSubcommand extends Subcommand {
 	
 	@Override
 	public String getName() {
 		
-		return "display";
+		return "public";
 	}
 	
 	@Override
 	public String getDescription() {
 		
-		return "Sets the name of the teleporter that is being looked at.";
+		return "Toggles whether this teleporter can be access by everyone.";
 	}
 	
 	@Override
@@ -35,23 +34,22 @@ public class DisplaySubcommand extends Subcommand {
 		
 		return builder
 			.senderType(Player.class)
-			.argument(ItemStackArgument.of("item"), ArgumentDescription.of("Item to be used. NBT will be ignored"))
-			.handler(context ->
-						 manager.taskRecipe().begin(context)
-								.synchronous(commandContext -> {
-									this.run((Player)commandContext.getSender(), commandContext.get("item"));
-								}).execute());
+			.argument(BooleanArgument.optional("value"))
+			.handler(context -> manager.taskRecipe().begin(context)
+								   .synchronous(commandContext -> {
+					   this.run((Player)commandContext.getSender(), commandContext.getOptional("value"));
+				   }).execute())
+			;
 	}
 	
 	@Override
 	public @Nullable Permissions getPermission() {
 		
-		return Permissions.CHANGE_DISPLAY;
+		return Permissions.CHANGE_PUBLIC;
 	}
 	
-	public void run(@NotNull Player player, ProtoItemStack stack) {
-		
-		var material = stack.material();
+	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+	public void run(Player player, Optional<Boolean> value) {
 		
 		var teleporter = this.getTeleporterInLineOfSight(player);
 		
@@ -59,10 +57,13 @@ public class DisplaySubcommand extends Subcommand {
 			return;
 		}
 		
-		teleporter.setItem(material);
-		TeleporterStore.getInstance().saveToDisk();
+		boolean setPublic = value.orElse(!teleporter.isPublicTeleporter());
 		
-		player.sendMessage(Messages.SUC_CHANGE_DISPLAY.printf(material.name().toLowerCase()));
+		teleporter.setPublicTeleporter(setPublic);
+		TeleporterStore.getInstance()
+					   .saveToDisk();
+		
+		player.sendMessage(Messages.SUC_CHANGE_PUBLIC.printf(teleporter.getName(), setPublic ? "public" : "private"));
 		
 	}
 	

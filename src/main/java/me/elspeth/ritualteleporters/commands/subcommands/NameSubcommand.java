@@ -1,18 +1,19 @@
 package me.elspeth.ritualteleporters.commands.subcommands;
 
 
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.command.Command;
+import cloud.commandframework.Command;
+import cloud.commandframework.arguments.standard.StringArgument;
+import cloud.commandframework.bukkit.BukkitCommandManager;
+
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.permissions.Permission;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import me.elspeth.ritualteleporters.commands.Subcommand;
-import me.elspeth.ritualteleporters.portals.PortalStore;
-import me.elspeth.ritualteleporters.utils.BlockUtils;
+import me.elspeth.ritualteleporters.teleporter.TeleporterStore;
 import me.elspeth.ritualteleporters.utils.Messages;
+import me.elspeth.ritualteleporters.utils.Permissions;
 
 public class NameSubcommand extends Subcommand {
 	
@@ -23,46 +24,41 @@ public class NameSubcommand extends Subcommand {
 	}
 	
 	@Override
-	public String getSyntax() {
-		
-		return "<name>";
-	}
-	
-	@Override
 	public String getDescription() {
 		
-		return "Sets the name of the portal you are looking at";
+		return "Sets the name of a teleporter.";
 	}
 	
 	@Override
-	protected String getPermissionString() {
-		return "ritualteleporter.change.name";
+	public Command.Builder<CommandSender> getCommand(BukkitCommandManager<CommandSender> manager, Command.Builder<CommandSender> builder) {
+		
+		return builder
+			.senderType(Player.class)
+			.argument(StringArgument.greedy("name"))
+			.handler(context ->
+						 manager.taskRecipe().begin(context)
+								.synchronous(commandContext -> {
+									this.run((Player)commandContext.getSender(), commandContext.get("name"));
+								}).execute());
 	}
 	
 	@Override
-	public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+	public @Nullable Permissions getPermission() {
 		
-		if(!(sender instanceof Player player)) {
-			sender.sendMessage(Messages.ERR_NOT_A_PLAYER.printf());
-			return false;
+		return Permissions.CHANGE_NAME;
+	}
+	
+	public void run(@NotNull Player player, String name) {
+		
+		var teleporter = this.getTeleporterInLineOfSight(player);
+		
+		if (teleporter == null) {
+			return;
 		}
 		
-		if (args.length < 2) {
-			return false;
-		}
+		teleporter.setName(name);
+		TeleporterStore.getInstance().saveToDisk();
 		
-		var portal = this.getPortalInLineOfSight(player);
-		
-		if (portal == null) {
-			this.errorNotPortal(player);
-			return true;
-		}
-		
-		portal.setName(args[1]);
-		PortalStore.getInstance().saveToDisk();
-		
-		sender.sendMessage(Messages.SUC_CHANGE_NAME.printf(args[1]));
-		
-		return true;
+		player.sendMessage(Messages.SUC_CHANGE_NAME.printf(name));
 	}
 }

@@ -1,79 +1,78 @@
 package me.elspeth.ritualteleporters.commands;
 
 
-import org.bukkit.Bukkit;
-import org.bukkit.command.CommandExecutor;
+import cloud.commandframework.Command;
+import cloud.commandframework.bukkit.BukkitCommandManager;
+import cloud.commandframework.meta.CommandMeta;
+import cloud.commandframework.permission.PredicatePermission;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
-import org.bukkit.permissions.Permission;
 import org.jetbrains.annotations.Nullable;
 
-import me.elspeth.ritualteleporters.portals.Portal;
-import me.elspeth.ritualteleporters.portals.PortalStore;
+import me.elspeth.ritualteleporters.teleporter.Teleporter;
+import me.elspeth.ritualteleporters.teleporter.TeleporterStore;
 import me.elspeth.ritualteleporters.utils.BlockUtils;
+import me.elspeth.ritualteleporters.utils.Messages;
+import me.elspeth.ritualteleporters.utils.Permissions;
 
-public abstract class Subcommand implements CommandExecutor {
+public abstract class Subcommand implements PredicatePermission<CommandSender> {
 
-	private Permission permission;
-	
-	public Subcommand() {
-		var permission = this.getPermissionString();
-		if (permission != null) {
-			this.permission = Bukkit.getPluginManager()
-									.getPermission(this.getPermissionString());
-		}
-	}
-	
 	abstract public String getName();
-	abstract public String getSyntax();
+	
 	abstract public String getDescription();
 	
-	public final @Nullable Permission getPermission() {
-		return this.permission;
+	public Command.Builder<CommandSender> getCommand(BukkitCommandManager<CommandSender> manager, Command.Builder<CommandSender> builder) {
+		return builder;
 	}
 	
-	public final boolean hasPermission(Player player) {
+	public List<Command.Builder<CommandSender>> getCommands(BukkitCommandManager<CommandSender> manager, Command.Builder<CommandSender> builder) {
+		var out = new ArrayList<Command.Builder<CommandSender>>();
+		out.add(this.getCommand(manager, builder).meta(CommandMeta.DESCRIPTION, getDescription()));
+		return out;
+	}
+	
+	abstract public @Nullable Permissions getPermission();
+	
+	@Override
+	public final boolean hasPermission(CommandSender sender) {
 		var permission = this.getPermission();
 		
 		if (permission == null) {
 			return true;
 		}
 		
-		return player.hasPermission(this.getPermission());
+		return permission.has(sender);
 	}
 	
-	abstract protected String getPermissionString();
-	
-	protected Portal getPortalInLineOfSight(Player player) {
+	protected Teleporter getTeleporterInLineOfSight(Player player) {
 		
 		var target = player.getTargetBlockExact(5);
 		
 		if (!BlockUtils.isItemTriggerablePlate(target)) {
-			this.errorNotPortal(player);
+			player.sendMessage(Messages.ERR_NOT_A_TELEPORTER.printf());
 			return null;
 		}
 		
-		var portal = PortalStore.getInstance().getPortalOf(target);
+		var teleporter = TeleporterStore.getInstance().getTeleporterOf(target);
 		
-		if (portal == null) {
-			this.errorNotPortal(player);
+		if (teleporter == null) {
+			player.sendMessage(Messages.ERR_NOT_A_TELEPORTER.printf());
 			return null;
 		}
 		
-		if (!portal.getOwner().equals(player.getUniqueId())) {
-			this.errorNoPermissions(player);
-			return null;
+		if (!teleporter.getOwner().equals(player.getUniqueId())) {
+			if (!Permissions.MANAGE_CHANGE.has(player)) {
+				
+				player.sendMessage(Messages.ERR_NOT_OWN_TELEPORTER.printf());
+				return null;
+			}
 		}
 		
-		return portal;
+		return teleporter;
 	}
 	
-	protected void errorNotPortal(CommandSender sender) {
-		sender.sendMessage("You are not looking at a portal");
-	}
-	
-	protected void errorNoPermissions(CommandSender sender) {
-		sender.sendMessage("You do not own this portal");
-	}
 }

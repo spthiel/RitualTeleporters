@@ -12,7 +12,7 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 public class InventoryListener implements Listener {
 	
 	public static InventoryListener instance;
-	private       List<Selector>    selectors = new ArrayList<>();
+	private final List<Selector>    selectors = new ArrayList<>();
 	
 	public InventoryListener() {
 		

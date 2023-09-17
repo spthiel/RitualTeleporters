@@ -2,6 +2,9 @@ package me.elspeth.ritualteleporters.inventory;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.format.TextDecoration;
 
 import java.util.ArrayList;
 
@@ -10,11 +13,11 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
-import me.elspeth.ritualteleporters.RitualTeleporter;
+import me.elspeth.ritualteleporters.RitualTeleporters;
 
 public class Option {
 	
-	private static NamespacedKey key = new NamespacedKey(RitualTeleporter.plugin, "selectorValue");
+	private static final NamespacedKey key = new NamespacedKey(RitualTeleporters.plugin, "selectorValue");
 	
 	private Material material;
 	private String value;
@@ -31,10 +34,15 @@ public class Option {
 	public ItemStack asItemStack() {
 		var out = new ItemStack(this.material, 1);
 		var meta = out.getItemMeta();
-		meta.displayName(Component.text(this.name));
+		meta.displayName(Component.text(this.name, Style.style().color(NamedTextColor.DARK_PURPLE).decorate(TextDecoration.BOLD).decoration(TextDecoration.ITALIC, false).build()));
 		if (this.description != null) {
 			var lore = new ArrayList<TextComponent>();
-			lore.add(Component.text(this.description));
+			var style = Style.style().color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false).build();
+			
+			for (var line : this.description.split("\n")) {
+				lore.add(Component.text(line, style));
+			}
+			
 			meta.lore(lore);
 		}
 		

@@ -1,8 +1,6 @@
 package me.elspeth.ritualteleporters.utils;
 
 import javax.annotation.Nullable;
-import java.util.Arrays;
-import java.util.List;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -10,11 +8,20 @@ import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.type.Candle;
-import org.bukkit.plugin.PluginBase;
 
 public class BlockUtils {
 	
 	public static final BlockFace[] diagonals = {BlockFace.NORTH_EAST, BlockFace.SOUTH_EAST, BlockFace.SOUTH_WEST, BlockFace.NORTH_WEST};
+	public static final BlockFace[] woodDirection = {
+		BlockFace.NORTH,
+		BlockFace.NORTH_EAST,
+		BlockFace.EAST,
+		BlockFace.SOUTH_EAST,
+		BlockFace.SOUTH,
+		BlockFace.SOUTH_WEST,
+		BlockFace.WEST,
+		BlockFace.NORTH_WEST
+	};
 	
 	public static boolean isWood(@Nullable Block block) {
 		if (block == null) {
@@ -71,38 +78,38 @@ public class BlockUtils {
 		return Tag.CANDLES.isTagged(block.getType());
 	}
 	
-	public static Location getBuildPortal(Block candle) {
+	public static Location getBuildTeleporter(Block candle) {
 		
-		var northCandle = candle.getRelative(BlockFace.NORTH, 2);
-		var eastCandle  = candle.getRelative(BlockFace.EAST, 2);
-		var southCandle = candle.getRelative(BlockFace.SOUTH, 2);
-		var westCandle  = candle.getRelative(BlockFace.WEST, 2);
+		var northCandle = isCandle(candle.getRelative(BlockFace.NORTH, 2));
+		var eastCandle  = isCandle(candle.getRelative(BlockFace.EAST, 2));
+		var southCandle = isCandle(candle.getRelative(BlockFace.SOUTH, 2));
+		var westCandle  = isCandle(candle.getRelative(BlockFace.WEST, 2));
 		
-		if (isCandle(northCandle) && isCandle(eastCandle)) {
+		if (northCandle && eastCandle) {
 			var center = candle.getRelative(BlockFace.NORTH_EAST);
-			if (checkPortal(center)) {
+			if (checkTeleporter(center)) {
 				return center.getLocation();
 			}
 		}
 		
-		if (isCandle(eastCandle) && isCandle(southCandle)) {
+		if (eastCandle && southCandle) {
 			var center = candle.getRelative(BlockFace.SOUTH_EAST);
-			if (checkPortal(center)) {
+			if (checkTeleporter(center)) {
 				return center.getLocation();
 			}
 		}
 		
-		if (isCandle(southCandle) && isCandle(westCandle)) {
+		if (southCandle && westCandle) {
 			var center = candle.getRelative(BlockFace.SOUTH_WEST);
-			if (checkPortal(center)) {
+			if (checkTeleporter(center)) {
 				return center.getLocation();
 			}
 			
 		}
 		
-		if (isCandle(westCandle) && isCandle(northCandle)) {
+		if (westCandle && northCandle) {
 			var center = candle.getRelative(BlockFace.NORTH_WEST);
-			if (checkPortal(center)) {
+			if (checkTeleporter(center)) {
 				return center.getLocation();
 			}
 		}
@@ -110,42 +117,30 @@ public class BlockUtils {
 		return null;
 	}
 	
-	private static boolean checkPortal(Block center) {
+	private static boolean checkTeleporter(Block center) {
 		
-		for (var dx = -1 ; dx <= 1 ; dx++) {
-			for (var dz = -1 ; dz <= 1 ; dz++) {
-				if (dx == 0 && dz == 0) {
-					if (!isPlanks(center.getRelative(dx, -1, dz))) {
-						return false;
-					}
-				} else {
-					if (!isWood(center.getRelative(dx, -1, dz))) {
-						return false;
-					}
-				}
+		if (!isItemTriggerablePlate(center)) {
+			return false;
+		}
+		
+		if (!isPlanks(center.getRelative(BlockFace.DOWN))) {
+			return false;
+		}
+		
+		for (var direction : woodDirection) {
+			if (!isWood(center.getRelative(direction).getRelative(BlockFace.DOWN))) {
+				return false;
 			}
 		}
 		
 		var litCandles = 0;
 		
-		if (isLitCandle(center.getRelative(BlockFace.NORTH_EAST))) {
-			litCandles++;
+		for (var direction : diagonals) {
+			if (isLitCandle(center.getRelative(direction))) {
+				litCandles++;
+			}
 		}
 		
-		if (isLitCandle(center.getRelative(BlockFace.NORTH_WEST))) {
-			litCandles++;
-		}
-		
-		if (isLitCandle(center.getRelative(BlockFace.SOUTH_EAST))) {
-			litCandles++;
-		}
-		
-		if (isLitCandle(center.getRelative(BlockFace.SOUTH_WEST))) {
-			litCandles++;
-		}
-		
-		return litCandles >= 3 &&
-			isPressurePlate(center)
-			;
+		return litCandles >= 3;
 	}
 }

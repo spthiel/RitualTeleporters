@@ -1,23 +1,32 @@
 package me.elspeth.ritualteleporters.commands.subcommands;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.HoverEvent;
+import cloud.commandframework.Command;
+import cloud.commandframework.arguments.standard.EnumArgument;
+import cloud.commandframework.bukkit.BukkitCommandManager;
+import cloud.commandframework.bukkit.parsers.OfflinePlayerArgument;
+import cloud.commandframework.meta.CommandMeta;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import me.elspeth.ritualteleporters.commands.Subcommand;
-import me.elspeth.ritualteleporters.portals.PortalStore;
+import me.elspeth.ritualteleporters.teleporter.TeleporterStore;
 import me.elspeth.ritualteleporters.utils.Messages;
+import me.elspeth.ritualteleporters.utils.Permissions;
 
 public class MembersSubcommand extends Subcommand {
+	
+	private enum Verbs {
+		add(),
+		remove()
+	}
 	
 	@Override
 	public String getName() {
@@ -26,71 +35,129 @@ public class MembersSubcommand extends Subcommand {
 	}
 	
 	@Override
-	public String getSyntax() {
-		
-		return "<add/remove/list> [player]";
-	}
-	
-	@Override
 	public String getDescription() {
 		
-		return "Adds or removes permissions for players to use the portal or shows a list of players who can use this portal.";
+		return null;
 	}
 	
 	@Override
-	protected String getPermissionString() {
-		return "ritualteleporter.change.members";
+	public List<Command.Builder<CommandSender>> getCommands(BukkitCommandManager<CommandSender> manager, Command.Builder<CommandSender> builder) {
+		
+		var out = new ArrayList<Command.Builder<CommandSender>>();
+		
+		builder = builder.senderType(Player.class);
+		
+		var verb = EnumArgument.<CommandSender, Verbs> builder(Verbs.class, "verb")
+							   .withDefaultDescription(() -> "add/remove")
+							   .build();
+		
+		out.add(builder.argument(verb)
+					   .meta(CommandMeta.DESCRIPTION, "Adds or removes a member from a teleporter.")
+					   .argument(OfflinePlayerArgument.of("player"))
+					   .handler(context -> manager.taskRecipe()
+												  .begin(context)
+												  .synchronous(commandContext -> {
+													  Verbs type = commandContext.get("verb");
+													  if (type.equals(Verbs.add)) {
+														  this.add((Player) commandContext.getSender(), commandContext.get("player"));
+													  } else {
+														  this.remove((Player) commandContext.getSender(), commandContext.get("player"));
+													  }
+												  })
+												  .execute()));
+		
+		out.add(builder.literal("list")
+					   .meta(CommandMeta.DESCRIPTION, "Lists all members from a teleporter.")
+					   .handler(context -> manager.taskRecipe()
+												  .begin(context)
+												  .synchronous(commandContext -> {
+													  this.list((Player) commandContext.getSender());
+												  })
+												  .execute()));
+		
+		
+		return out;
 	}
 	
 	@Override
-	public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+	public @Nullable Permissions getPermission() {
 		
-		if(!(sender instanceof Player player)) {
-			sender.sendMessage(Messages.ERR_NOT_A_PLAYER.printf());
-			return false;
+		return Permissions.CHANGE_MEMBERS;
+	}
+	
+	private void add(Player player, OfflinePlayer member) {
+		
+		var teleporter = this.getTeleporterInLineOfSight(player);
+		
+		if (teleporter == null) {
+			return;
 		}
 		
-		if (args.length < 2) {
-			return false;
+		var memberUUID = member.getUniqueId();
+		
+		if (teleporter.getOwner()
+					  .equals(memberUUID)) {
+			if (member.getUniqueId()
+					  .equals(memberUUID)) {
+				player.sendMessage(Messages.ERR_YOU_ARE_OWNER.printf());
+			} else {
+				player.sendMessage(Messages.ERR_PLAYER_IS_OWNER.printf(member.getName()));
+			}
+			return;
 		}
 		
-		var portal = this.getPortalInLineOfSight(player);
-		
-		if (portal == null) {
-			return true;
+		if (teleporter.getMembers()
+					  .contains(memberUUID)) {
+			player.sendMessage(Messages.ERR_ALREADY_MEMBER.printf(member.getName()));
+			return;
 		}
 		
-		if (args[1].equalsIgnoreCase("list")) {
-			var members = portal.getMembers().stream()
+		teleporter.addMember(member);
+		
+		TeleporterStore.getInstance()
+					   .saveToDisk();
+		
+		player.sendMessage(Messages.SUC_ADDRM_MEMBER.printf("added", member.getName(), teleporter.getName()));
+	}
+	
+	private void remove(Player player, OfflinePlayer member) {
+		
+		var teleporter = this.getTeleporterInLineOfSight(player);
+		
+		if (teleporter == null) {
+			return;
+		}
+		
+		var memberUUID = member.getUniqueId();
+		
+		if (!teleporter.getMembers()
+					   .contains(memberUUID)) {
+			player.sendMessage(Messages.ERR_NOT_MEMBER.printf(member.getName()));
+			return;
+		}
+		
+		teleporter.removeMember(member);
+		
+		TeleporterStore.getInstance()
+					   .saveToDisk();
+		
+		player.sendMessage(Messages.SUC_ADDRM_MEMBER.printf("removed", member.getName(), teleporter.getName()));
+	}
+	
+	private void list(Player player) {
+		
+		var teleporter = this.getTeleporterInLineOfSight(player);
+		
+		if (teleporter == null) {
+			return;
+		}
+		
+		var members = teleporter.getMembers()
+								.stream()
 								.map(Bukkit :: getOfflinePlayer)
-								.map(OfflinePlayer ::getName)
+								.map(OfflinePlayer :: getName)
 								.collect(Collectors.joining(", "));
-			sender.sendMessage(Messages.MSG_MEMBERS.printf(portal.getName(), members));
-			return true;
-		}
-		
-		var member = Bukkit.getOfflinePlayerIfCached(args[2]);
-		
-		if (member == null) {
-			sender.sendMessage(Messages.ERR_INVALID_PLAYER.printf(args[2]));
-			return true;
-		}
-		
-		String verb;
-		
-		if (args[1].equalsIgnoreCase("add")) {
-			portal.addMember(member);
-			verb = "added";
-		} else if (args[1].equalsIgnoreCase("remove")) {
-			portal.addMember(member);
-			verb = "removed";
-		} else {
-			return false;
-		}
-		PortalStore.getInstance().saveToDisk();
-		
-		sender.sendMessage(Messages.SUC_ADDRM_MEMBER.printf(verb, member.getName(), portal.getName()));
-		
-		return true;
+		player.sendMessage(Messages.MSG_MEMBERS.printf(teleporter.getName(), members));
 	}
+	
 }

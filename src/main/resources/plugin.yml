@@ -1,30 +1,39 @@
 name: RitualTeleporters
 version: '${version}'
-main: me.elspeth.ritualteleporters.RitualTeleporter
+main: me.elspeth.ritualteleporters.RitualTeleporters
 api-version: '1.20'
 author: xElspeth
 description: 'Simple and pretty teleporters'
 
-commands:
-    teleporter:
-        aliases: [ritp, tptr]
-        description: 'Modify teleporter data'
-        usage: '/teleporter help'
-
 permissions:
-    ritualteleporter.*:
+    ritualteleporters.*:
         default: false
         children:
-            ritualteleporter.change.*: true
-    ritualteleporter.change.*:
+            ritualteleporters.change.*: true
+            ritualteleporters.manage.*: true
+    ritualteleporters.manage.*:
+        default: false
+        children:
+            ritualteleporters.manage.teleport: true
+            ritualteleporters.manage.change: true
+    ritualteleporters.manage.teleport:
+        default: false
+        description: 'Allows teleporting to teleporters of other players'
+    ritualteleporters.manage.change:
+        default: false
+        description: 'Allows running commands on other players teleporters'
+    ritualteleporters.change.*:
         default: true
         children:
-            ritualteleporter.change.members: true
-            ritualteleporter.change.display: true
-            ritualteleporter.change.name: true
-    ritualteleporter.change.members:
+            ritualteleporters.change.members: true
+            ritualteleporters.change.display: true
+            ritualteleporters.change.name: true
+            ritualteleporters.change.public: false
+    ritualteleporters.change.public:
+        description: 'Allows making teleporters public'
+    ritualteleporters.change.members:
         description: 'Allows adding members to teleporters'
-    ritualteleporter.change.display:
+    ritualteleporters.change.display:
         description: 'Allows changing of display item of teleporters'
-    ritualteleporter.change.name:
+    ritualteleporters.change.name:
         description: 'Allows changing the name of a teleporter'

@@ -1,6 +1,5 @@
 package me.elspeth.ritualteleporters.inventory;
 
-import com.destroystokyo.paper.profile.PlayerProfile;
 import net.kyori.adventure.text.Component;
 
 import java.net.MalformedURLException;
@@ -13,18 +12,13 @@ import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.inventory.DoubleChestInventory;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
-import me.elspeth.ritualteleporters.RitualTeleporter;
+import me.elspeth.ritualteleporters.RitualTeleporters;
 import me.elspeth.ritualteleporters.utils.SyntacticBukkitRunnable;
 
 public class Selector implements Listener {
@@ -45,7 +39,7 @@ public class Selector implements Listener {
 			textures.setSkin(new URL(url));
 			profile.setTextures(textures);
 		} catch (MalformedURLException e) {
-			e.printStackTrace();
+			RitualTeleporters.plugin.getLogger().throwing(Selector.class.getName(), "setSkullUrl", e);
 		}
 		//noinspection deprecation
 		skullMeta.setOwnerProfile(profile);
@@ -55,17 +49,19 @@ public class Selector implements Listener {
 	static {
 		var nextMeta = (SkullMeta)nextPage.getItemMeta();
 		nextMeta.displayName(Component.text("Next Page"));
+		//noinspection HttpUrlsUsage
 		nextMeta = setSkullUrl(nextMeta, "http://textures.minecraft.net/texture/682ad1b9cb4dd21259c0d75aa315ff389c3cef752be3949338164bac84a96e");
 		nextPage.setItemMeta(nextMeta);
 		
 		var previousMeta = (SkullMeta)previousPage.getItemMeta();
 		previousMeta.displayName(Component.text("Previous Page"));
+		//noinspection HttpUrlsUsage
 		previousMeta = setSkullUrl(previousMeta, "http://textures.minecraft.net/texture/37aee9a75bf0df7897183015cca0b2a7d755c63388ff01752d5f4419fc645");
 		previousPage.setItemMeta(previousMeta);
 	}
 	
-	private       Inventory        inventory;
-	private final Player           player;
+	private final Inventory inventory;
+	private final Player    player;
 	private       Consumer<String> onSuccess;
 	private       Runnable         onClose;
 	private final List<Option>     options = new ArrayList<>();
@@ -94,6 +90,7 @@ public class Selector implements Listener {
 		return player;
 	}
 	
+	@SuppressWarnings("unused")
 	public Inventory getInventory() {
 		
 		return inventory;
@@ -116,7 +113,7 @@ public class Selector implements Listener {
 			player.openInventory(inventory);
 			this.open = true;
 		});
-		runnable.runTask(RitualTeleporter.plugin);
+		runnable.runTask(RitualTeleporters.plugin);
 	}
 	
 	private void decorate() {
@@ -226,11 +223,7 @@ public class Selector implements Listener {
 			return true;
 		}
 		
-		if (slot % 9 == 8) {
-			return true;
-		}
-		
-		return false;
+		return slot % 9 == 8;
 	}
 	
 	private void nextPage() {

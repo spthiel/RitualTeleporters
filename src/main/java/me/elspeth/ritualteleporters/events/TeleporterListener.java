@@ -1,8 +1,6 @@
 package me.elspeth.ritualteleporters.events;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -13,12 +11,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockIgniteEvent;
 import org.bukkit.event.entity.EntityInteractEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.server.TabCompleteEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 
 import me.elspeth.ritualteleporters.utils.BlockUtils;
 import me.elspeth.ritualteleporters.utils.Entry;
@@ -72,8 +69,20 @@ public class TeleporterListener implements Listener {
 			return false;
 		}
 		
-		eventExecutor.onExtinguish(event.getClickedBlock());
+		var allowed = eventExecutor.onExtinguish(event.getPlayer(), event.getClickedBlock());
+		
+		if (!allowed) {
+			event.setCancelled(true);
+		}
+		
 		return true;
+	}
+	
+	@EventHandler
+	private void blockBreak(BlockBreakEvent event) {
+		if(!eventExecutor.onBlockBreak(event.getBlock())) {
+			event.setCancelled(true);
+		}
 	}
 	
 	@EventHandler
@@ -105,8 +114,4 @@ public class TeleporterListener implements Listener {
 		eventExecutor.onColor(event.getBlock(), item, stack);
 	}
 	
-	@EventHandler
-	public void tabComplete(TabCompleteEvent event) {
-		event.setCompletions(new ArrayList<>());
-	}
 }

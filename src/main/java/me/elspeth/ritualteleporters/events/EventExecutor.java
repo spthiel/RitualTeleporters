@@ -3,53 +3,53 @@ package me.elspeth.ritualteleporters.events;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
 import me.elspeth.ritualteleporters.inventory.LocationSelect;
-import me.elspeth.ritualteleporters.portals.Portal;
-import me.elspeth.ritualteleporters.portals.PortalStore;
+import me.elspeth.ritualteleporters.teleporter.Teleporter;
+import me.elspeth.ritualteleporters.teleporter.TeleporterStore;
 import me.elspeth.ritualteleporters.utils.BlockUtils;
 import me.elspeth.ritualteleporters.utils.Colors;
 
 public class EventExecutor {
 	
-	private final PortalStore       store            = new PortalStore();
+	private final TeleporterStore   store            = new TeleporterStore();
 	private final Map<Player, Long> teleportCooldown = new HashMap<>();
 	
 	public void onLightCandle(
 		@NotNull Player player,
 		@NotNull Block candle
 	) {
-	
-		var location = BlockUtils.getBuildPortal(candle);
 		
-		if(location == null) {
+		var location = BlockUtils.getBuildTeleporter(candle);
+		
+		if (location == null) {
 			return;
 		}
 		
-		store.registerPortal(location, Colors.ofCandle(candle.getType()), player);
+		store.registerTeleporter(location, Colors.ofCandle(candle.getType()), player);
 		
 	}
 	
 	public void onColor(Block block, Item item, ItemStack dye) {
-	
-		Portal portal = store.getPortalOf(block);
 		
-		if (portal == null) {
+		Teleporter teleporter = store.getTeleporterOf(block);
+		
+		if (teleporter == null) {
 			return;
 		}
 		
 		Colors color = Colors.ofDye(dye);
-		if (portal.getColor().equals(color) || color == null) {
+		if (teleporter.getColor()
+					  .equals(color) || color == null) {
 			return;
 		}
-		portal.setColor(color);
+		teleporter.setColor(color);
 		store.saveToDisk();
 		
 		if (dye.getAmount() > 1) {
@@ -60,22 +60,26 @@ public class EventExecutor {
 		}
 	}
 	
-	public void onExtinguish(Block candle) {
+	public boolean onExtinguish(Player player, Block candle) {
 		
-		Portal portal = null;
+		Teleporter teleporter = null;
 		for (var direction : BlockUtils.diagonals) {
-			portal = store.getPortalOf(candle.getRelative(direction));
-			if (portal != null) {
+			teleporter = store.getTeleporterOf(candle.getRelative(direction));
+			if (teleporter != null) {
 				break;
 			}
 		}
 		
-		if (portal == null) {
-			return;
+		if (teleporter == null) {
+			return true;
 		}
 		
-		store.removePortal(portal);
+		if (!teleporter.hasChangePermissions(player)) {
+			return false;
+		}
 		
+		store.removeTeleporter(teleporter);
+		return true;
 	}
 	
 	public void onPressurePlate(Player player, Block plate) {
@@ -84,14 +88,64 @@ public class EventExecutor {
 			return;
 		}
 		
-		var currentPortal = store.getPortalOf(plate);
+		var currentTeleporter = store.getTeleporterOf(plate);
 		
-		var locationSelect = new LocationSelect(player, store.getPortals().stream().filter(portal -> portal != currentPortal).toList());
+		if (currentTeleporter == null) {
+			return;
+		}
+		
+		var availableTeleporters = store.getTeleporters()
+										.stream()
+										.filter(teleporter -> teleporter.hasPermissions(player))
+										.toList();
+		
+		var locationSelect = new LocationSelect(player, availableTeleporters);
 		locationSelect.openWorldSelect();
-		locationSelect.then(portal -> {
-			portal.teleportTo(player);
+		locationSelect.then(teleporter -> {
+			teleporter.teleportTo(player);
 			teleportCooldown.put(player, System.currentTimeMillis());
 		});
+		
+	}
 	
+	/**
+	 *
+	 * @return Whether the block is allowed to be broken
+	 */
+	public boolean onBlockBreak(Block block) {
+		
+		if (BlockUtils.isLitCandle(block)) {
+			for (var direction : BlockUtils.diagonals) {
+				var teleporter = store.getTeleporterOf(block.getRelative(direction));
+				if (teleporter != null) {
+					return false;
+				}
+			}
+			
+			return true;
+		}
+		
+		if (BlockUtils.isItemTriggerablePlate(block)) {
+			return store.getTeleporterOf(block) == null;
+		}
+		
+		var relative = block.getRelative(BlockFace.UP);
+		
+		if (BlockUtils.isPlanks(block)) {
+			return store.getTeleporterOf(relative) == null;
+		}
+		
+		if (BlockUtils.isWood(block)) {
+			for (var direction : BlockUtils.woodDirection) {
+				var teleporter = store.getTeleporterOf(relative.getRelative(direction));
+				if (teleporter != null) {
+					return false;
+				}
+			}
+			
+			return true;
+		}
+		
+		return true;
 	}
 }

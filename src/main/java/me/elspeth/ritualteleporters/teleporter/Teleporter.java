@@ -1,44 +1,41 @@
-package me.elspeth.ritualteleporters.portals;
+package me.elspeth.ritualteleporters.teleporter;
 
 import java.util.*;
 
 import org.bukkit.*;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.Candle;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.bukkit.entity.BlockDisplay;
-import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
-import org.bukkit.util.Transformation;
 import org.jetbrains.annotations.NotNull;
-import org.joml.AxisAngle4f;
-import org.joml.Vector3f;
 
 import me.elspeth.ritualteleporters.utils.BlockUtils;
 import me.elspeth.ritualteleporters.utils.Colors;
+import me.elspeth.ritualteleporters.utils.Permissions;
 
-public class Portal implements ConfigurationSerializable {
+public class Teleporter implements ConfigurationSerializable {
 	
 	private static int counter = 0;
 	
-	private final int id;
+	private final int      id;
 	private final Location location;
 	private final Location centerLocation;
-	private       Colors color;
-	private final UUID   owner;
-	private final World  world;
+	private       Colors   color;
+	private final UUID     owner;
+	private final World    world;
+	private       boolean  publicTeleporter;
 	
-	private String name = "Portal";
-	private Material     item    = Material.GRASS_BLOCK;
-	private List<UUID> members = new ArrayList<>();
+	private String     name    = "Teleporter";
+	private       Material   item    = Material.GRASS_BLOCK;
+	private final List<UUID> members = new ArrayList<>();
 	
-	public Portal(Location location, Colors color, Player owner) {
+	public Teleporter(Location location, Colors color, Player owner) {
+		
 		this(location, color, owner.getUniqueId());
 	}
-	public Portal(Location location, Colors color, UUID owner) {
+	
+	public Teleporter(Location location, Colors color, UUID owner) {
+		
 		this.id = counter++;
 		this.owner = owner;
 		this.location = location;
@@ -84,23 +81,38 @@ public class Portal implements ConfigurationSerializable {
 	}
 	
 	public Material getItem() {
+		
 		return this.item;
 	}
 	
 	public void addMember(UUID uuid) {
+		
 		this.members.add(uuid);
 	}
 	
 	public void addMember(OfflinePlayer player) {
+		
 		this.addMember(player.getUniqueId());
 	}
 	
 	public void removeMember(UUID uuid) {
+		
 		this.members.remove(uuid);
 	}
 	
 	public void removeMember(OfflinePlayer player) {
+		
 		this.removeMember(player.getUniqueId());
+	}
+	
+	public boolean isPublicTeleporter() {
+		
+		return publicTeleporter;
+	}
+	
+	public void setPublicTeleporter(boolean publicTeleporter) {
+		
+		this.publicTeleporter = publicTeleporter;
 	}
 	
 	public void spawn() {
@@ -113,7 +125,6 @@ public class Portal implements ConfigurationSerializable {
 	public void remove() {
 		
 		this.world.playSound(centerLocation, Sound.ENTITY_GENERIC_EXPLODE, 1f, 0.5f);
-//		this.blockDisplay.remove();
 		var directions = BlockUtils.diagonals;
 		
 		Block center = location.getBlock();
@@ -123,9 +134,9 @@ public class Portal implements ConfigurationSerializable {
 			var originalData = (Candle) block.getBlockData();
 			var newData = color.getCandle()
 							   .createBlockData(data -> {
-								   Candle blockdata = (Candle) data;
-								   blockdata.setLit(false);
-								   blockdata.setCandles(originalData.getCandles());
+								   Candle blockData = (Candle) data;
+								   blockData.setLit(false);
+								   blockData.setCandles(originalData.getCandles());
 							   });
 			block.setBlockData(newData);
 		}
@@ -134,7 +145,6 @@ public class Portal implements ConfigurationSerializable {
 	public void setColor(Colors color) {
 		
 		this.color = color;
-//		this.blockDisplay.setGlowColorOverride(color.getColor());
 		changeCandles();
 	}
 	
@@ -149,9 +159,9 @@ public class Portal implements ConfigurationSerializable {
 			var originalData = (Candle) block.getBlockData();
 			var newData = color.getCandle()
 							   .createBlockData(data -> {
-								   Candle blockdata = (Candle) data;
-								   blockdata.setLit(true);
-								   blockdata.setCandles(originalData.getCandles());
+								   Candle blockData = (Candle) data;
+								   blockData.setLit(true);
+								   blockData.setCandles(originalData.getCandles());
 							   });
 			block.setBlockData(newData);
 		}
@@ -160,8 +170,8 @@ public class Portal implements ConfigurationSerializable {
 	public void spawnParticle(float dx, float dz) {
 		
 		if (this.centerLocation.isChunkLoaded()) {
-			dx *= 1.4;
-			dz *= 1.4;
+			dx *= 1.4F;
+			dz *= 1.4F;
 			var loc1 = this.centerLocation.clone()
 										  .add(dx, 0.5, dz);
 			var loc2 = this.centerLocation.clone()
@@ -174,6 +184,31 @@ public class Portal implements ConfigurationSerializable {
 		}
 	}
 	
+	public boolean hasPermissions(Player player) {
+		
+		if (this.publicTeleporter) {
+			return true;
+		}
+		
+		if (player.getUniqueId().equals(this.owner)) {
+			return true;
+		}
+		
+		if (Permissions.MANAGE_TELEPORT.has(player)) {
+			return true;
+		}
+		
+		return this.members.contains(player.getUniqueId());
+	}
+	
+	public boolean hasChangePermissions(Player player) {
+		if (this.owner.equals(player.getUniqueId())) {
+			return true;
+		}
+		
+		return Permissions.MANAGE_CHANGE.has(player);
+	}
+	
 	@Override
 	public @NotNull Map<String, Object> serialize() {
 		
@@ -184,35 +219,43 @@ public class Portal implements ConfigurationSerializable {
 		data.put("owner", this.owner.toString());
 		data.put("name", this.name);
 		data.put("display", this.item.name());
-		data.put("members", this.members.stream().map(UUID::toString));
+		data.put("members", this.members.stream()
+										.map(UUID :: toString)
+										.toList());
+		
+		data.put("public", this.publicTeleporter);
 		
 		return data;
 	}
 	
-	public static Portal deserialize(Map<String, Object> data) {
-		var location = (Location) data.get("location");
+	@SuppressWarnings("unused")
+	public static Teleporter deserialize(Map<String, Object> data) {
+		
+		var location  = (Location) data.get("location");
 		var colorName = (String) data.get("color");
-		var colors = Colors.valueOf(colorName);
-		var ownerUUID = UUID.fromString((String)data.get("owner"));
+		var colors    = Colors.valueOf(colorName);
+		var ownerUUID = UUID.fromString((String) data.get("owner"));
 		
-		var portal = new Portal(location, colors, ownerUUID);
+		var teleporter = new Teleporter(location, colors, ownerUUID);
 		
-		portal.setName((String)data.getOrDefault("name", "Portal"));
-		portal.setItem(Material.valueOf((String)data.getOrDefault("display", "GRASS_BLOCK")));
+		teleporter.setName((String) data.getOrDefault("name", "Teleporter"));
+		teleporter.setItem(Material.valueOf((String) data.getOrDefault("display", "GRASS_BLOCK")));
+		teleporter.setPublicTeleporter((boolean) data.getOrDefault("public", false));
 		
-		//noinspection unchecked
-		for (var member : (Iterable<String>)data.getOrDefault("members", new ArrayList<String>())) {
+		// noinspection unchecked
+		for (var member : (Iterable<String>) data.getOrDefault("members", new ArrayList<String>())) {
 			
 			var memberUUID = UUID.fromString(member);
-			portal.addMember(memberUUID);
+			teleporter.addMember(memberUUID);
 			
 		}
 		
-		return portal;
+		return teleporter;
 	}
 	
 	
 	public void teleportTo(Player player) {
+		
 		player.teleport(this.centerLocation);
 	}
 	

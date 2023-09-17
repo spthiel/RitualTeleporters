@@ -3,20 +3,16 @@ package me.elspeth.ritualteleporters.utils;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.stream.Stream;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Material;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionType;
-import org.jetbrains.annotations.NotNull;
 
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "unused"})
 public enum Colors {
 	
 	DEFAULT(
@@ -140,11 +136,11 @@ public enum Colors {
 	),
 	;
 	
-	private Color          color;
-	private ChatColor      chatColor;
-	private NamedTextColor textColor;
-	private Material       candle;
-	private Material       dye;
+	private final Color     color;
+	private final ChatColor chatColor;
+	private final NamedTextColor textColor;
+	private final Material       candle;
+	private final Material       dye;
 	
 	Colors(Color color, ChatColor chatColor, NamedTextColor textColor, Material candle, Material dye) {
 		
